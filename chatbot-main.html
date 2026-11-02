@@ -1,0 +1,521 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>설비 진단 챗봇 시안</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 시안 B: 좌측 대화 목록 + 중앙 대화(주 작업면) + 우측 알림·설비 컨텍스트 패널 */
+:root{
+  --bg:#f4f5f8; --surface:#ffffff; --line:#e3e6ec; --line-2:#eef0f4; --hover:#f7f8fb;
+  --fg:#1b1e27; --muted:#5f6676; --faint:#8a90a0;
+  --accent:#2f3ab2; --accent-hi:#3a46c9; --accent-soft:#eceefc; --on-accent:#ffffff;
+  --crit:#c4282f; --crit-bg:#fdecec; --crit-line:#f1c3c5;
+  --warn:#a8560b; --warn-bg:#fff4e6; --warn-line:#f4d9b2;
+  --ok:#2a7a43; --ok-bg:#ecf6ef; --ok-line:#cde5d4;
+  --info:#2f3ab2; --info-bg:#e9ecfd;
+  --neutral:#4b5262; --neutral-bg:#eef0f4;
+  --chart-line:#3640c0; --chart-fill:rgba(54,64,192,.10); --chart-grid:#eceef3; --chart-prev:#a7adbb;
+  --font:"Pretendard","Noto Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --header-h:64px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111319; --surface:#191c24; --line:#2a2e3a; --line-2:#232733; --hover:#1f232d;
+  --fg:#e7e9f0; --muted:#a2a8b8; --faint:#7d8496;
+  --accent:#7b84ff; --accent-hi:#9097ff; --accent-soft:#252a4a; --on-accent:#0f1120;
+  --crit:#ff7b80; --crit-bg:#3a1c20; --crit-line:#5a2a30;
+  --warn:#f2b15f; --warn-bg:#36280f; --warn-line:#56401c;
+  --ok:#6fcf8b; --ok-bg:#16301f; --ok-line:#24492f;
+  --info:#9aa1ff; --info-bg:#232848;
+  --neutral:#b4bacb; --neutral-bg:#262a35;
+  --chart-line:#8a92ff; --chart-fill:rgba(138,146,255,.14); --chart-grid:#252935; --chart-prev:#5e6476;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#111319; --surface:#191c24; --line:#2a2e3a; --line-2:#232733; --hover:#1f232d;
+  --fg:#e7e9f0; --muted:#a2a8b8; --faint:#7d8496;
+  --accent:#7b84ff; --accent-hi:#9097ff; --accent-soft:#252a4a; --on-accent:#0f1120;
+  --crit:#ff7b80; --crit-bg:#3a1c20; --crit-line:#5a2a30;
+  --warn:#f2b15f; --warn-bg:#36280f; --warn-line:#56401c;
+  --ok:#6fcf8b; --ok-bg:#16301f; --ok-line:#24492f;
+  --info:#9aa1ff; --info-bg:#232848;
+  --neutral:#b4bacb; --neutral-bg:#262a35;
+  --chart-line:#8a92ff; --chart-fill:rgba(138,146,255,.14); --chart-grid:#252935; --chart-prev:#5e6476;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.num{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono)}
+
+/* Header (시안 A와 동일) */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+.topbar{flex:none;background:var(--surface);border-bottom:1px solid var(--line);position:relative;z-index:20}
+.topbar-in{height:var(--header-h);display:flex;align-items:center;gap:24px;padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:18px;white-space:nowrap;letter-spacing:-.01em}
+.brand-mark{width:36px;height:36px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:var(--on-accent);flex:none}
+.nav{display:flex;gap:4px;height:100%;overflow-x:auto;scrollbar-width:none;min-width:0}
+.nav a{position:relative;display:flex;align-items:center;padding:0 20px;color:var(--muted);text-decoration:none;font-weight:500;font-size:15px;white-space:nowrap}
+.nav a:hover{color:var(--fg)}
+.nav a[aria-current="page"]{color:var(--fg);font-weight:700}
+.nav a[aria-current="page"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:3px;background:var(--accent);border-radius:3px 3px 0 0}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:14px;white-space:nowrap;color:var(--muted)}
+.icon-btn{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--fg);position:relative;flex:none}
+.icon-btn:hover{background:var(--hover)}
+.dot{position:absolute;top:8px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--crit);box-shadow:0 0 0 2px var(--surface)}
+.user{color:var(--fg)}
+
+/* App grid */
+.app{flex:1;min-height:0;display:grid;grid-template-columns:280px minmax(0,1fr) 320px;position:relative}
+.side{background:var(--surface);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px}
+.side-top{padding-block:20px 12px;display:flex;flex-direction:column;gap:12px}
+.cta{width:100%;border:0;border-radius:12px;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:15px;padding:13px;display:flex;align-items:center;justify-content:center;gap:8px}
+.cta:hover{background:var(--accent-hi)}
+.search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:9px 12px;color:var(--faint)}
+.search input{border:0;background:transparent;outline:none;width:100%;color:var(--fg)}
+.conv-list{flex:1;overflow-y:auto;padding-bottom:20px;display:flex;flex-direction:column;gap:18px}
+.conv-group h3{margin:0 0 6px 10px;font-size:12.5px;color:var(--muted);font-weight:700}
+.conv{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;border:0;background:transparent;border-radius:10px;padding:10px 12px}
+.conv:hover{background:var(--hover)}
+.conv[aria-current="true"]{background:var(--accent-soft)}
+.conv-t{display:flex;align-items:center;gap:8px;font-weight:500;overflow:hidden}
+.conv-t span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conv small{color:var(--faint);font-size:12.5px}
+
+/* Center */
+.center{display:flex;flex-direction:column;min-height:0;min-width:0}
+.chat-head{flex:none;display:flex;align-items:center;gap:12px;padding:14px 28px;border-bottom:1px solid var(--line);background:var(--surface);flex-wrap:wrap}
+.chat-head h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em}
+.chat-head .meta{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+.chat-head .spacer{flex:1}
+.ghost{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:7px 12px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.ghost:hover{background:var(--hover)}
+.only-narrow,.only-mid{display:none}
+.thread{flex:1;overflow-y:auto;padding:28px 28px 12px}
+.thread-in{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:26px}
+.day{align-self:center;font-size:12.5px;color:var(--faint);background:var(--line-2);padding:3px 12px;border-radius:999px}
+.msg{display:flex;gap:12px;align-items:flex-start}
+.msg .av{width:32px;height:32px;border-radius:8px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;flex:none}
+.msg .body{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
+.who{display:flex;gap:8px;align-items:baseline;font-size:13px}
+.who b{font-weight:700}
+.who time{color:var(--faint)}
+.msg p{margin:0;max-width:68ch}
+.msg.user{justify-content:flex-end}
+.msg.user .bubble{background:var(--accent-soft);color:var(--fg);padding:11px 16px;border-radius:16px 16px 4px 16px;max-width:min(560px,85%)}
+.msg.user time{display:block;text-align:right;font-size:12px;color:var(--faint);margin-top:4px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.alert-card{padding:16px 18px;display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:16px;align-items:center}
+.alert-card .t{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}
+.alert-card .d{color:var(--muted);font-size:13px;margin-top:4px}
+.alert-card .vals{display:flex;gap:18px;margin-top:10px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.alert-card .vals b{font-family:var(--mono);font-weight:500;color:var(--fg)}
+.alert-card .vals b.over{color:var(--crit)}
+.spark{width:100%;height:auto;display:block}
+.pill{display:inline-flex;align-items:center;font-size:12.5px;font-weight:700;padding:2px 9px;border-radius:7px;white-space:nowrap}
+.p1{background:var(--crit-bg);color:var(--crit)}
+.p2{background:var(--warn-bg);color:var(--warn)}
+.p3,.p4{background:var(--neutral-bg);color:var(--neutral)}
+.chip{display:inline-flex;font-size:12.5px;font-weight:500;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.s-analyzing{background:var(--info-bg);color:var(--info)}
+.s-new{background:var(--crit-bg);color:var(--crit)}
+.s-wo{background:var(--ok-bg);color:var(--ok)}
+.s-done{background:var(--neutral-bg);color:var(--neutral)}
+
+.answer{padding:18px 20px;display:flex;flex-direction:column;gap:18px}
+.sec h4{margin:0 0 10px;font-size:13px;color:var(--muted);font-weight:700;letter-spacing:.02em}
+.causes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.cause{display:grid;grid-template-columns:24px minmax(0,1fr) 120px;gap:12px;align-items:center}
+.rank{width:24px;height:24px;border-radius:50%;background:var(--neutral-bg);color:var(--neutral);font-weight:700;font-size:12.5px;display:grid;place-items:center}
+.cause:first-child .rank{background:var(--accent);color:var(--on-accent)}
+.cause .n{font-weight:500}
+.cause .why{color:var(--muted);font-size:13px}
+.conf{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);text-align:right}
+.bar{height:6px;background:var(--line-2);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.actions{display:flex;flex-direction:column;border:1px solid var(--line-2);border-radius:10px;overflow:hidden}
+.act{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 14px;border-top:1px solid var(--line-2)}
+.act:first-child{border-top:0}
+.act .what{font-weight:500}
+.act .how{color:var(--muted);font-size:13px}
+.act.done .what{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--faint)}
+.mark{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:500;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.mark:hover{border-color:var(--accent);color:var(--accent)}
+.act.done .mark{background:var(--ok-bg);border-color:var(--ok-line);color:var(--ok)}
+.sources{display:flex;flex-wrap:wrap;gap:8px}
+.src{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:5px 10px;color:var(--muted);background:var(--surface)}
+.src b{color:var(--fg);font-weight:500}
+.foot-btns{display:flex;gap:8px;flex-wrap:wrap;padding-top:4px;border-top:1px solid var(--line-2);padding-top:14px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:9px 14px;font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:var(--hover)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn.primary:hover{background:var(--accent-hi)}
+.cmp{padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+.cmp-legend{display:flex;gap:16px;font-size:12.5px;color:var(--muted)}
+.cmp-legend i{display:inline-block;width:18px;height:0;border-top:2.4px solid var(--chart-line);vertical-align:middle;margin-right:6px}
+.cmp-legend i.prev{border-top:2px dashed var(--chart-prev)}
+.cmp-legend i.th{border-top:1.5px dashed var(--crit)}
+.chart-wrap{overflow-x:auto}
+.chart{width:100%;min-width:380px;height:auto;display:block}
+.chart text,.spark text{fill:var(--faint);font-family:var(--mono);font-size:11px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stat{background:var(--bg);border-radius:10px;padding:10px 12px}
+.stat small{display:block;color:var(--muted);font-size:12px}
+.stat b{font-family:var(--mono);font-weight:500;font-size:16px}
+.stat b.over{color:var(--crit)}
+.report{padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+.report dl{display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px 14px;margin:0}
+.report dt{color:var(--muted)}
+.report dd{margin:0}
+.report ul{margin:0;padding-left:18px}
+.typing{display:inline-flex;gap:4px;padding:6px 0}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--faint);animation:blink 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes blink{0%,80%,100%{opacity:.3}40%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.typing i{animation:none}}
+
+.composer{flex:none;padding:10px 28px 18px;padding-bottom:max(18px,env(safe-area-inset-bottom,0px))}
+.composer-in{max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+.suggest{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.suggest button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;font-size:13px;white-space:nowrap;color:var(--muted)}
+.suggest button:hover{color:var(--accent);border-color:var(--accent)}
+.box{display:flex;align-items:flex-end;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 10px 10px 16px}
+.box:focus-within{border-color:var(--accent)}
+.box textarea{flex:1;border:0;outline:none;resize:none;background:transparent;min-height:24px;max-height:140px;padding:4px 0}
+.send{width:40px;height:40px;border-radius:10px;border:0;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;flex:none}
+.send:hover{background:var(--accent-hi)}
+.hint{font-size:12px;color:var(--faint);text-align:center}
+
+/* Right context */
+.ctx{background:var(--surface);border-left:1px solid var(--line);overflow-y:auto;padding-block:20px;padding-left:20px;padding-right:max(20px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:24px}
+.ctx h2{margin:0;font-size:15px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+.count{background:var(--crit-bg);color:var(--crit);font-weight:700;font-size:12.5px;padding:1px 9px;border-radius:999px}
+.mini{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.mini button{display:flex;flex-direction:column;gap:6px;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px}
+.mini button:hover{background:var(--hover)}
+.mini .r1{display:flex;align-items:center;gap:8px;font-weight:500}
+.mini .r2{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px}
+.eq-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:12px}
+.eq{border-radius:8px;padding:8px 6px;border:1px solid;font-size:12px;text-align:center;font-weight:700}
+.eq small{display:block;font-weight:400;font-size:11px}
+.eq.crit{background:var(--crit-bg);border-color:var(--crit-line);color:var(--crit)}
+.eq.warn{background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)}
+.eq.ok{background:var(--ok-bg);border-color:var(--ok-line);color:var(--ok)}
+.ctx-legend{font-size:12px;color:var(--muted);margin-top:8px}
+.ctx .link{color:var(--accent);font-weight:500;font-size:13px;text-decoration:none}
+.scrim{display:none}
+
+@media (max-width:1180px){
+  .app{grid-template-columns:260px minmax(0,1fr)}
+  .ctx{position:absolute;top:0;right:0;bottom:0;width:min(340px,90vw);z-index:15;box-shadow:-8px 0 24px rgba(0,0,0,.12);transform:translateX(105%);transition:transform .2s}
+  .ctx.open{transform:none}
+  .only-mid{display:inline-flex}
+  .top-right .factory{display:none}
+}
+@media (max-width:780px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side{position:absolute;top:0;left:0;bottom:0;width:min(300px,86vw);z-index:15;box-shadow:8px 0 24px rgba(0,0,0,.12);transform:translateX(-105%);transition:transform .2s}
+  .side.open{transform:none}
+  .only-narrow{display:inline-flex}
+  .topbar-in{gap:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .brand span,.top-right .user{display:none}
+  .nav a{padding:0 12px}
+  .chat-head{padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px))}
+  .thread{padding:20px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px))}
+  .composer{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .alert-card{grid-template-columns:minmax(0,1fr)}
+  .cause{grid-template-columns:24px minmax(0,1fr)}
+  .conf{grid-column:2;text-align:left}
+  .act{grid-template-columns:auto minmax(0,1fr)}
+  .act .mark{grid-column:2;justify-self:start}
+  .stats{grid-template-columns:minmax(0,1fr)}
+  .msg .av{display:none}
+}
+@media (max-width:1180px){.scrim.show{display:block;position:absolute;inset:0;background:rgba(10,12,20,.32);z-index:14}}
+</style>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>
+      </div>
+      <span>설비 진단 에이전트</span>
+    </div>
+    <nav class="nav" aria-label="주요 메뉴">
+      <a href="#" aria-current="page">대화</a>
+      <a href="#">대시보드</a>
+      <a href="#">설비</a>
+      <a href="#">작업지시</a>
+      <a href="#">보고서</a>
+    </nav>
+    <div class="top-right">
+      <span class="factory">[공장명] · 실시간 갱신</span>
+      <button class="icon-btn" aria-label="알림 4건" id="bellBtn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>
+        <span class="dot"></span>
+      </button>
+      <span class="user">[사용자 이름] · 설비 엔지니어</span>
+    </div>
+  </div>
+</header>
+
+<div class="app">
+  <aside class="side" id="side" aria-label="대화 목록">
+    <div class="side-top">
+      <button class="cta"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>새 대화 시작</button>
+      <label class="search" for="q"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" placeholder="대화 검색"></label>
+    </div>
+    <div class="conv-list">
+      <div class="conv-group">
+        <h3>오늘</h3>
+        <button class="conv" aria-current="true"><span class="conv-t"><span class="pill p1">P1</span><span>[설비명 A] 진동 급증 대응</span></span><small>13:19 · 분석 중</small></button>
+        <button class="conv"><span class="conv-t"><span class="pill p2">P2</span><span>[설비명 B] 온도 상승 추세</span></span><small>12:31 · 작업지시 발행</small></button>
+        <button class="conv"><span class="conv-t"><span class="pill p2">P2</span><span>[설비명 F] 전류 주의</span></span><small>12:48 · 발생</small></button>
+      </div>
+      <div class="conv-group">
+        <h3>이번 주</h3>
+        <button class="conv"><span class="conv-t"><span>지난주 [설비명 B] 상태 요약</span></span><small>어제</small></button>
+        <button class="conv"><span class="conv-t"><span>베어링 교체 기준 문의</span></span><small>어제</small></button>
+        <button class="conv"><span class="conv-t"><span>[설비명 D] 조치 보고서</span></span><small>어제 22:05</small></button>
+        <button class="conv"><span class="conv-t"><span>10월 월간 정비 보고서</span></span><small>11월 1일</small></button>
+      </div>
+    </div>
+  </aside>
+
+  <section class="center">
+    <div class="chat-head">
+      <button class="ghost only-narrow" id="openSide" aria-label="대화 목록 열기"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>목록</button>
+      <h1>[설비명 A] 진동 급증 대응</h1>
+      <span class="meta"><span class="pill p1">P1</span><span class="chip s-analyzing">분석 중</span></span>
+      <span class="spacer"></span>
+      <button class="ghost only-mid" id="openCtx">알림·설비 <span class="count num">4</span></button>
+      <button class="ghost">대시보드에서 보기</button>
+    </div>
+
+    <div class="thread" id="thread">
+      <div class="thread-in" id="threadIn">
+        <span class="day">2026년 11월 2일 월요일</span>
+
+        <div class="msg">
+          <div class="av" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5"/></svg></div>
+          <div class="body">
+            <div class="who"><b>진단 에이전트</b><time>13:13</time></div>
+            <div class="card alert-card">
+              <div>
+                <div class="t"><span class="pill p1">P1 긴급</span>[설비명 A] 진동 급증</div>
+                <div class="d">구동단(DE) 베어링 하우징 · 수평 방향 센서</div>
+                <div class="vals"><span>현재 <b class="over">4.7 mm/s</b></span><span>임계치 <b>4.5 mm/s</b></span><span>6시간 전 <b>1.9 mm/s</b></span></div>
+              </div>
+              <svg class="spark" id="spark" viewBox="0 0 200 64" role="img" aria-label="최근 24시간 진동 추이, 마지막 값이 임계치를 넘음"></svg>
+            </div>
+            <p>진동 RMS가 위험 임계치를 넘어 P1으로 분류했습니다. 원인 분석을 시작할까요?</p>
+          </div>
+        </div>
+
+        <div class="msg user"><div><div class="bubble">원인 후보랑 지금 해야 할 조치 우선순위로 정리해줘</div><time>13:15</time></div></div>
+
+        <div class="msg">
+          <div class="av" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5"/></svg></div>
+          <div class="body">
+            <div class="who"><b>진단 에이전트</b><time>13:15</time></div>
+            <p>스펙트럼에서 베어링 외륜 결함 주파수(BPFO) 대역 성분이 6시간 사이 크게 늘었습니다. 매뉴얼 기준으로 ISO 10816-3 구간 D에 해당해 즉시 감속 운전을 권장합니다.</p>
+            <div class="card answer">
+              <div class="sec">
+                <h4>원인 후보</h4>
+                <ol class="causes">
+                  <li class="cause"><span class="rank">1</span><div><div class="n">베어링 외륜 결함</div><div class="why">BPFO 대역 성분 증가, 고주파 포락선 상승</div></div><div class="conf">신뢰도 높음<span class="bar"><i style="width:82%"></i></span></div></li>
+                  <li class="cause"><span class="rank">2</span><div><div class="n">축 정렬 불량</div><div class="why">2X 성분 소폭 증가, 8월 커플링 교체 이력</div></div><div class="conf">중간<span class="bar"><i style="width:48%"></i></span></div></li>
+                  <li class="cause"><span class="rank">3</span><div><div class="n">기초 볼트 풀림</div><div class="why">1X 위상 변화 미미, 가능성 낮음</div></div><div class="conf">낮음<span class="bar"><i style="width:18%"></i></span></div></li>
+                </ol>
+              </div>
+              <div class="sec">
+                <h4>권장 조치</h4>
+                <div class="actions" id="actions">
+                  <div class="act done" data-id="a1"><span class="pill p1">즉시</span><div><div class="what">부하 50%로 감속 운전</div><div class="how">운전실 요청 · 감속 후 30분 진동 재확인</div></div><button class="mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>완료 · 13:17</button></div>
+                  <div class="act" data-id="a2"><span class="pill p2">당일</span><div><div class="what">DE 베어링 3축 진동 재측정</div><div class="how">수평·수직·축 방향 휴대용 측정기 · 매뉴얼 4.3절</div></div><button class="mark">조치 완료</button></div>
+                  <div class="act" data-id="a3"><span class="pill p2">당일</span><div><div class="what">윤활 상태 점검 및 그리스 보충</div><div class="how">지정 그리스, 과충전 주의</div></div><button class="mark">조치 완료</button></div>
+                  <div class="act" data-id="a4"><span class="pill p3">주간</span><div><div class="what">축 정렬 점검</div><div class="how">레이저 정렬기 · 다음 계획 정지 때</div></div><button class="mark">조치 완료</button></div>
+                </div>
+              </div>
+              <div class="sec">
+                <h4>근거 문서</h4>
+                <div class="sources">
+                  <span class="src"><b>설비 매뉴얼</b>4.3 베어링 점검 · p.42</span>
+                  <span class="src"><b>정비 이력</b>2026-08-14 커플링 교체</span>
+                  <span class="src"><b>ISO 10816-3</b>구간 C/D 기준</span>
+                </div>
+              </div>
+              <div class="foot-btns">
+                <button class="btn primary" id="reportBtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>조치 보고서 작성</button>
+                <button class="btn" id="woBtn">작업지시 발행</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="msg user"><div><div class="bubble">지난주 같은 시간대랑 비교해줘</div><time>13:19</time></div></div>
+
+        <div class="msg">
+          <div class="av" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5"/></svg></div>
+          <div class="body">
+            <div class="who"><b>진단 에이전트</b><time>13:19</time></div>
+            <p>지난주 같은 24시간은 1.4~1.8 mm/s 사이에서 안정적이었습니다. 이번 주는 6시간 전부터 가파르게 올라 현재 지난주 평균의 약 2.9배입니다.</p>
+            <div class="card cmp">
+              <div class="cmp-legend"><span><i></i>이번 주</span><span><i class="prev"></i>지난주</span><span><i class="th"></i>위험 임계치</span></div>
+              <div class="chart-wrap"><svg class="chart" id="cmpChart" viewBox="0 0 560 200" role="img" aria-label="이번 주와 지난주 진동 비교"></svg></div>
+              <div class="stats">
+                <div class="stat"><small>현재</small><b class="over">4.7 mm/s</b></div>
+                <div class="stat"><small>지난주 같은 시각</small><b>1.6 mm/s</b></div>
+                <div class="stat"><small>증가율</small><b>+194%</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <form class="composer" id="composer">
+      <div class="composer-in">
+        <div class="suggest" id="suggest">
+          <button type="button">P1 알림 요약</button>
+          <button type="button">[설비명 B] 온도 트렌드 보여줘</button>
+          <button type="button">오늘 조치 보고서 작성</button>
+          <button type="button">베어링 교체 기준</button>
+        </div>
+        <div class="box">
+          <textarea id="input" rows="1" placeholder="설비 상태나 조치에 대해 물어보세요"></textarea>
+          <button class="send" type="submit" aria-label="보내기"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        </div>
+        <div class="hint">에이전트 답변은 매뉴얼과 정비 이력을 근거로 하며, 최종 판단은 담당 엔지니어가 합니다.</div>
+      </div>
+    </form>
+  </section>
+
+  <aside class="ctx" id="ctx" aria-label="알림과 설비 상태">
+    <div>
+      <h2>진행 중인 알림 <span class="count num">4건</span></h2>
+      <div class="mini" id="miniAlerts"></div>
+    </div>
+    <div>
+      <h2>설비 상태 <a class="link" href="#">대시보드</a></h2>
+      <div class="eq-grid" id="eqGrid"></div>
+      <div class="ctx-legend">정상 · 주의 · 경고</div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+</div>
+
+<script>
+const STATUS={analyzing:['분석 중','s-analyzing'],new:['발생','s-new'],wo:['작업지시 발행','s-wo'],done:['조치 완료','s-done']};
+const alerts=[
+  {p:1,eq:'[설비명 A]',title:'진동 급증',status:'analyzing',time:'12분 전'},
+  {p:2,eq:'[설비명 F]',title:'전류 주의',status:'new',time:'40분 전'},
+  {p:2,eq:'[설비명 B]',title:'온도 상승 추세',status:'wo',time:'1시간 전'},
+  {p:3,eq:'[설비명 C]',title:'전류 편차',status:'new',time:'3시간 전'},
+];
+document.getElementById('miniAlerts').innerHTML=alerts.map(a=>{
+  const [l,c]=STATUS[a.status];
+  return `<button><span class="r1"><span class="pill p${a.p}">P${a.p}</span>${a.eq} ${a.title}</span><span class="r2"><span class="chip ${c}">${l}</span>· ${a.time}</span></button>`;
+}).join('');
+const eqs=[['A','crit','진동'],['B','warn','온도'],['C','ok','정상'],['D','ok','정상'],['E','ok','정상'],['F','warn','전류'],['G','ok','정상'],['H','ok','정상']];
+document.getElementById('eqGrid').innerHTML=eqs.map(([id,s,l])=>`<div class="eq ${s}">${id}<small>${l}</small></div>`).join('');
+
+/* 진동 데이터 (mm/s RMS, 2시간 간격 13점) */
+const now=[1.6,1.7,1.5,1.6,1.7,1.6,1.8,1.9,2.2,2.7,3.3,4.0,4.7];
+const prev=[1.5,1.6,1.6,1.4,1.5,1.7,1.6,1.5,1.6,1.8,1.6,1.5,1.6];
+const T=4.5;
+
+(function spark(){
+  const W=200,H=64,P=4,max=5.5;
+  const x=i=>P+i*(W-2*P)/(now.length-1), y=v=>P+(1-v/max)*(H-2*P);
+  const d=now.map((v,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  document.getElementById('spark').innerHTML=
+    `<path d="${d}L${x(now.length-1)},${H-P}L${x(0)},${H-P}Z" fill="var(--chart-fill)"/>`+
+    `<line x1="${P}" x2="${W-P}" y1="${y(T)}" y2="${y(T)}" stroke="var(--crit)" stroke-dasharray="4 4" stroke-width="1.2"/>`+
+    `<path d="${d}" fill="none" stroke="var(--chart-line)" stroke-width="2" stroke-linejoin="round"/>`+
+    `<circle cx="${x(now.length-1)}" cy="${y(now[now.length-1])}" r="3.5" fill="var(--crit)" stroke="var(--surface)" stroke-width="1.5"/>`;
+})();
+
+(function cmp(){
+  const W=560,H=200,L=40,R=12,Tp=10,B=26,min=0,max=6;
+  const x=i=>L+i*(W-L-R)/(now.length-1), y=v=>Tp+(1-(v-min)/(max-min))*(H-Tp-B);
+  let g='';
+  for(let k=0;k<=3;k++){const v=k*2,yy=y(v);g+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="var(--chart-grid)"/><text x="${L-8}" y="${yy+4}" text-anchor="end">${v.toFixed(1)}</text>`}
+  ['-24h','-18h','-12h','-6h','지금'].forEach((t,j)=>{g+=`<text x="${x(j*3)}" y="${H-6}" text-anchor="${j===0?'start':j===4?'end':'middle'}">${t}</text>`});
+  const path=a=>a.map((v,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  g+=`<line x1="${L}" x2="${W-R}" y1="${y(T)}" y2="${y(T)}" stroke="var(--crit)" stroke-width="1.5" stroke-dasharray="6 5"/>`;
+  g+=`<path d="${path(prev)}" fill="none" stroke="var(--chart-prev)" stroke-width="2" stroke-dasharray="5 4"/>`;
+  g+=`<path d="${path(now)}L${x(12)},${y(0)}L${x(0)},${y(0)}Z" fill="var(--chart-fill)"/>`;
+  g+=`<path d="${path(now)}" fill="none" stroke="var(--chart-line)" stroke-width="2.4" stroke-linejoin="round"/>`;
+  g+=`<circle cx="${x(12)}" cy="${y(4.7)}" r="5" fill="var(--crit)" stroke="var(--surface)" stroke-width="2"/>`;
+  document.getElementById('cmpChart').innerHTML=g;
+})();
+
+/* 조치 완료 토글 */
+const clock=()=>{const d=new Date();return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
+const CHECK='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>';
+document.querySelectorAll('.act .mark').forEach(b=>b.onclick=()=>{
+  const row=b.closest('.act');
+  if(row.classList.toggle('done')){row.dataset.at=row.dataset.at||clock();b.innerHTML=`${CHECK}완료 · ${row.dataset.at}`}
+  else{delete row.dataset.at;b.textContent='조치 완료'}
+});
+document.querySelector('.act.done').dataset.at='13:17';
+
+const thread=document.getElementById('thread'), tin=document.getElementById('threadIn');
+const AV=document.querySelector('.msg .av').outerHTML;
+function agentMsg(html){
+  const el=document.createElement('div');el.className='msg';
+  el.innerHTML=`${AV}<div class="body"><div class="who"><b>진단 에이전트</b><time>${clock()}</time></div>${html}</div>`;
+  tin.appendChild(el);thread.scrollTop=thread.scrollHeight;return el;
+}
+function userMsg(text){
+  const el=document.createElement('div');el.className='msg user';
+  const b=document.createElement('div');b.className='bubble';b.textContent=text;
+  const w=document.createElement('div');w.appendChild(b);w.insertAdjacentHTML('beforeend',`<time>${clock()}</time>`);
+  el.appendChild(w);tin.appendChild(el);thread.scrollTop=thread.scrollHeight;
+}
+
+document.getElementById('reportBtn').onclick=()=>{
+  const done=[...document.querySelectorAll('.act.done')].map(r=>`<li>${r.querySelector('.what').textContent} <span style="color:var(--muted)">(${r.dataset.at})</span></li>`);
+  agentMsg(`<p>완료된 조치 ${done.length}건으로 보고서 초안을 만들었습니다. 확인 후 제출하세요.</p>
+  <div class="card report">
+    <dl>
+      <dt>설비</dt><dd>[설비명 A] · DE 베어링 하우징</dd>
+      <dt>발생</dt><dd class="num">2026-11-02 13:13 · P1 진동 급증 (4.7 mm/s)</dd>
+      <dt>추정 원인</dt><dd>베어링 외륜 결함 (신뢰도 높음)</dd>
+      <dt>조치 내역</dt><dd>${done.length?`<ul>${done.join('')}</ul>`:'<span style="color:var(--muted)">완료된 조치가 없습니다. 조치 완료를 먼저 눌러주세요.</span>'}</dd>
+      <dt>작성자</dt><dd>[사용자 이름]</dd>
+    </dl>
+    <div class="foot-btns"><button class="btn primary">보고서 제출</button><button class="btn">수정하기</button></div>
+  </div>`);
+};
+document.getElementById('woBtn').onclick=e=>{e.currentTarget.textContent='작업지시 발행됨';e.currentTarget.disabled=true};
+
+/* 입력창 */
+const input=document.getElementById('input');
+input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,140)+'px'});
+input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();document.getElementById('composer').requestSubmit()}});
+document.getElementById('composer').addEventListener('submit',e=>{
+  e.preventDefault();const t=input.value.trim();if(!t)return;
+  userMsg(t);input.value='';input.style.height='auto';
+  const el=agentMsg('<span class="typing" aria-label="응답 작성 중"><i></i><i></i><i></i></span>');
+  setTimeout(()=>{el.querySelector('.body').lastElementChild.outerHTML='<p>시안 화면이라 실제 분석은 연결되어 있지 않습니다. 에이전트 연동 후 이 자리에 답변이 표시됩니다.</p>'},900);
+});
+document.querySelectorAll('#suggest button').forEach(b=>b.onclick=()=>{input.value=b.textContent;input.focus()});
+
+/* 좁은 화면 패널 */
+const side=document.getElementById('side'),ctx=document.getElementById('ctx'),scrim=document.getElementById('scrim');
+const close=()=>{side.classList.remove('open');ctx.classList.remove('open');scrim.classList.remove('show')};
+document.getElementById('openSide').onclick=()=>{side.classList.add('open');scrim.classList.add('show')};
+document.getElementById('openCtx').onclick=()=>{ctx.classList.add('open');scrim.classList.add('show')};
+document.getElementById('bellBtn').onclick=()=>{if(matchMedia('(max-width:1180px)').matches){ctx.classList.add('open');scrim.classList.add('show')}};
+scrim.onclick=close;
+thread.scrollTop=thread.scrollHeight;
+</script>
