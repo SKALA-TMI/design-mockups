@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>설비 진단 에이전트 UI 시안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* 시안 선택 페이지: 두 시안을 와이어프레임 썸네일 카드로 나란히 비교 */
+:root{
+  --bg:#f4f5f8; --surface:#ffffff; --line:#e3e6ec; --line-2:#eef0f4; --hover:#f7f8fb;
+  --fg:#1b1e27; --muted:#5f6676; --faint:#8a90a0;
+  --accent:#2f3ab2; --accent-soft:#eceefc; --on-accent:#ffffff;
+  --crit-bg:#fdecec; --crit-line:#f1c3c5; --warn-bg:#fff4e6; --warn-line:#f4d9b2; --ok-bg:#ecf6ef; --ok-line:#cde5d4;
+  --wire:#e8eaf0;
+  --font:"Pretendard","Noto Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#111319; --surface:#191c24; --line:#2a2e3a; --line-2:#232733; --hover:#1f232d;
+  --fg:#e7e9f0; --muted:#a2a8b8; --faint:#7d8496;
+  --accent:#7b84ff; --accent-soft:#252a4a; --on-accent:#0f1120;
+  --crit-bg:#3a1c20; --crit-line:#5a2a30; --warn-bg:#36280f; --warn-line:#56401c; --ok-bg:#16301f; --ok-line:#24492f;
+  --wire:#262a35; color-scheme:dark;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
+.wrap{max-width:1080px;margin:0 auto;padding-block:56px 64px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:36px}
+.brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:16px}
+.brand-mark{width:34px;height:34px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:var(--on-accent)}
+h1{margin:18px 0 8px;font-size:32px;letter-spacing:-.02em;line-height:1.3;text-wrap:balance}
+.lead{margin:0;color:var(--muted);max-width:60ch}
+.meta{margin-top:14px;font-family:var(--mono);font-size:12.5px;color:var(--faint)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.card{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;text-decoration:none;transition:border-color .15s,transform .15s}
+.card:hover{border-color:var(--accent)}
+@media (prefers-reduced-motion:no-preference){.card:hover{transform:translateY(-2px)}}
+.thumb{background:var(--bg);border-bottom:1px solid var(--line);padding:22px;aspect-ratio:16/9;max-width:100%}
+.screen{height:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;overflow:hidden}
+.bar{height:12%;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:6px;padding:0 8px}
+.bar i{display:block;height:5px;border-radius:3px;background:var(--wire)}
+.bar i:first-child{width:9px;height:9px;border-radius:3px;background:var(--accent)}
+.body{flex:1;display:grid;gap:6px;padding:6px;min-height:0}
+.w{background:var(--wire);border-radius:4px}
+.a .body{grid-template-columns:26% 1fr}
+.a .main{display:grid;grid-template-rows:auto 1fr auto;gap:6px;min-height:0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.kpis .w{height:16px}
+.mid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;align-content:start}
+.tiles i{height:13px;border-radius:3px;border:1px solid var(--ok-line);background:var(--ok-bg)}
+.tiles i.c{border-color:var(--crit-line);background:var(--crit-bg)}
+.tiles i.y{border-color:var(--warn-line);background:var(--warn-bg)}
+.spark{position:relative;background:var(--wire);border-radius:4px;overflow:hidden}
+.spark svg{position:absolute;inset:0;width:100%;height:100%}
+.tbl{height:22px}
+.b .body{grid-template-columns:22% 1fr 24%}
+.chat{display:flex;flex-direction:column;gap:5px;padding:2px 6px;min-height:0}
+.chat .w{height:7px}
+.chat .u{align-self:flex-end;width:44%;height:9px;background:var(--accent-soft)}
+.chat .ans{height:auto;flex:1;border:1px solid var(--line-2);background:transparent;padding:4px;display:flex;flex-direction:column;gap:3px}
+.chat .ans i{display:block;height:5px;border-radius:3px;background:var(--wire)}
+.chat .in{height:12px;border:1px solid var(--line);background:transparent;margin-top:auto}
+.info{padding:22px 24px 24px;display:flex;flex-direction:column;gap:10px;flex:1}
+.label{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.04em}
+.info h2{margin:0;font-size:20px;letter-spacing:-.01em}
+.info p{margin:0;color:var(--muted)}
+.go{margin-top:auto;padding-top:8px;display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--accent)}
+.compare{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:14px}
+.compare h2{margin:0;font-size:18px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:560px}
+th,td{text-align:left;padding:12px;border-bottom:1px solid var(--line-2);vertical-align:top}
+th{color:var(--muted);font-weight:500;border-bottom-color:var(--line)}
+tr:last-child td{border-bottom:0}
+td:first-child{color:var(--muted);white-space:nowrap}
+footer{color:var(--faint);font-size:13px}
+@media (max-width:760px){.grid{grid-template-columns:minmax(0,1fr)}h1{font-size:26px}.wrap{padding-block:36px 48px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg></div>
+      설비 진단 에이전트
+    </div>
+    <h1>메인 화면 시안 비교</h1>
+    <p class="lead">메인 화면을 대시보드 중심으로 할지, 대화 중심으로 할지 정하기 위한 시안 두 가지입니다. 둘 다 클릭해서 동작을 확인할 수 있고, 데이터는 예시입니다.</p>
+    <div class="meta">SKALA-TMI · 2026-11-02 · v1</div>
+  </header>
+
+  <section class="grid" aria-label="시안 목록">
+    <a class="card" href="dashboard-main.html">
+      <div class="thumb a" aria-hidden="true">
+        <div class="screen">
+          <div class="bar"><i></i><i style="width:20%"></i><i style="width:8%;margin-left:auto"></i></div>
+          <div class="body">
+            <div class="w"></div>
+            <div class="main">
+              <div class="kpis"><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i></div>
+              <div class="mid">
+                <div class="tiles"><i class="c"></i><i class="y"></i><i></i><i></i><i></i><i class="y"></i><i></i><i></i></div>
+                <div class="spark"><svg viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M5 32 L25 31 L45 32 L65 28 L80 22 L95 8" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/><path d="M0 10 H100" stroke="#e05a5f" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/></svg></div>
+              </div>
+              <div class="w tbl"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="info">
+        <span class="label">시안 A</span>
+        <h2>대시보드 메인</h2>
+        <p>알림 목록, 우선순위별 건수, 설비 상태, 트렌드를 한 화면에서 훑어봅니다. 대화는 필요할 때 "새 대화 시작"으로 엽니다.</p>
+        <span class="go">시안 보기 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </div>
+    </a>
+
+    <a class="card" href="chatbot-main.html">
+      <div class="thumb b" aria-hidden="true">
+        <div class="screen">
+          <div class="bar"><i></i><i style="width:20%"></i><i style="width:8%;margin-left:auto"></i></div>
+          <div class="body">
+            <div class="w"></div>
+            <div class="chat">
+              <i class="w" style="width:60%"></i>
+              <i class="w u"></i>
+              <div class="w ans"><i style="width:80%"></i><i style="width:65%"></i><i style="width:72%"></i><i style="width:40%"></i></div>
+              <i class="w in"></i>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px"><i class="w" style="height:12px;display:block"></i><i class="w" style="height:12px;display:block"></i><div class="tiles"><i class="c"></i><i class="y"></i><i></i><i></i></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="info">
+        <span class="label">시안 B</span>
+        <h2>챗봇 메인</h2>
+        <p>알림이 대화로 들어오고, 원인 분석부터 조치 기록, 보고서 작성까지 한 대화 안에서 끝냅니다. 알림과 설비 상태는 오른쪽 패널에 둡니다.</p>
+        <span class="go">시안 보기 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </div>
+    </a>
+  </section>
+
+  <section class="compare" aria-labelledby="cmpTitle">
+    <h2 id="cmpTitle">비교 포인트</h2>
+    <div class="tw">
+      <table>
+        <thead><tr><th></th><th>시안 A · 대시보드 메인</th><th>시안 B · 챗봇 메인</th></tr></thead>
+        <tbody>
+          <tr><td>첫 화면 목적</td><td>전체 설비 상태 파악</td><td>지금 처리할 알림 대응</td></tr>
+          <tr><td>알림 대응 흐름</td><td>알림 클릭 → 대화 화면으로 이동</td><td>알림이 대화로 바로 도착</td></tr>
+          <tr><td>트렌드 비교</td><td>상시 차트, 설비·지표 선택</td><td>요청 시 대화 안에 비교 차트</td></tr>
+          <tr><td>조치 → 보고서</td><td>별도 화면 필요</td><td>조치 완료 체크 후 버튼 한 번으로 초안</td></tr>
+          <tr><td>잘 맞는 사용자</td><td>여러 설비를 함께 보는 관리자</td><td>현장에서 알림을 처리하는 엔지니어</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>시안의 설비명·수치는 모두 예시입니다. 의견은 팀 채널에 남겨주세요.</footer>
+</div>
+</body>
+</html>
